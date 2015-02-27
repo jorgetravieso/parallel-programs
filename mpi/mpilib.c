@@ -10,7 +10,7 @@
 
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
-#define LOGGING_MODE 0
+#define LOGGING_MODE 1
 
 
 void addall(int x, int* sum, int root);
@@ -31,15 +31,15 @@ int main(int argc, char ** argv){
 	MPI_Init(&argc,&argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &p); 		   //Find # of processes
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		
-		addall(rank, &sum, 0);
-		if(rank==0) printf("addall->%d\n", sum);
-		char ch = 'A'+rank;
-		char* buf = (char*)malloc(p+1);
-		collectall(&ch, 1, buf);
-		buf[p] = '\0';
-		if(rank==2) printf("%d: %s\n", rank, buf);
-		free(buf);
+
+	addall(rank, &sum, 0);
+	if(rank==0) printf("addall->%d\n", sum);
+	char ch = 'A'+rank;
+	char* buf = (char*)malloc(p+1);
+	collectall(&ch, 1, buf);
+	buf[p] = '\0';
+	if(rank==2) printf("%d: %s\n", rank, buf);
+	free(buf);
 	
 	MPI_Finalize();
 	return 0;
@@ -78,25 +78,24 @@ int main(int argc, char ** argv){
 				}
 				temp = 0;
 				MPI_Recv(&temp, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, 0);
-				//if(LOGGING_MODE) printf("------- Process %d received %d\n",rank,temp);
+				if(LOGGING_MODE) printf("------- Process %d received %d\n",rank,temp);
 				x += temp;
-				*sum = x;
 			}
 		}
 
 		if(rank == 0 && root == 0){
-		//	*sum = x;
-		}
-		/*else if(root == rank){
-			x = 0;
-			MPI_Recv(&x, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, 0);
 			*sum = x;
 		}
-		else if(rank == 0){ 
-			MPI_Send(&x, 1, MPI_INT, root, 0, MPI_COMM_WORLD);
+		else if(root == rank){
+			temp = 0;
+			MPI_Recv(&temp, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, 0);
+			*sum = temp;
 		}
-		*/
+		else if(rank == 0){ 
+			MPI_Send(&x, 1, MPI_INT, root, 1, MPI_COMM_WORLD);
+		}
 		
+		//MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 
@@ -123,9 +122,9 @@ int main(int argc, char ** argv){
 		for(int i = n - 1; i >= 0; i--){
 			int dest = rank ^ 1 << i;
 			//printf("sending to %d\n", dest);
-			MPI_Send(temp, p, MPI_CHAR, dest, 0, MPI_COMM_WORLD);
+			MPI_Send(temp, p, MPI_CHAR, dest, 3, MPI_COMM_WORLD);
 			//memset(&temp, 0, 256);
-			MPI_Recv(recvbuf, p, MPI_CHAR, dest, 0, MPI_COMM_WORLD, 0);
+			MPI_Recv(recvbuf, p, MPI_CHAR, dest, 3, MPI_COMM_WORLD, 0);
 			//printf("Receiving: %s\n", recvbuf);
 
 
