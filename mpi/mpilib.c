@@ -15,6 +15,7 @@
 
 void addall(int x, int* sum, int root);
 void collectall(char* , int , char* );
+void collectall2(char* sendbuf, int sendcnt, char* recvbuf);
 
 
 int p;       //number of processes
@@ -35,9 +36,10 @@ int main(int argc, char ** argv){
 	addall(rank, &sum, 0);
 	if(rank==0) printf("addall->%d\n", sum);
 	char ch = 'A'+rank;
-	char* buf = (char*)malloc(p+1);
-	collectall(&ch, 1, buf);
-	buf[p] = '\0';
+	char* buf = (char*)malloc(p * 3+1);
+	collectall2("ABC", 3, buf);
+	//collectall2(&ch, 1, buf);
+	buf[p * 3 + 1] = '\0';
 	if(rank==2) printf("%d: %s\n", rank, buf);
 	free(buf);
 	
@@ -55,6 +57,7 @@ int main(int argc, char ** argv){
 */
 	void addall(int x, int* sum, int root){
 
+		MPI_Barrier(MPI_COMM_WORLD);
 		if(root < 0 || root >= p){
 			printf("Error invalid root parameter\n");
 			exit(-1);
@@ -109,7 +112,7 @@ int main(int argc, char ** argv){
 */
 	void collectall(char* sendbuf, int sendcnt, char* recvbuf){
 
-		
+		MPI_Barrier(MPI_COMM_WORLD);
 		char temp[p + 1];
 		for(int i = 0; i < p; i++){
 			temp[i] = '*'; 
@@ -138,6 +141,51 @@ int main(int argc, char ** argv){
 
 
 		}
+
+		//free(temp);
+
+
+	}
+
+
+	void collectall2(char* sendbuf, int sendcnt, char* recvbuf){
+
+		MPI_Barrier(MPI_COMM_WORLD);
+		int size = sendcnt * p + 1;
+		char temp[size];
+		memset(&temp, '*', size);
+		temp[size - 1] = '\0';
+		int i, j = rank;		
+		for(i = 0; i < sendcnt; i++){
+			temp[j++] = sendbuf[i];
+			recvbuf[j++] = sendbuf[i];
+		}
+
+
+		int n  = log2(p);
+		for(i = n - 1; i >= 0; i--){
+			int dest = rank ^ 1 << i;
+			printf("...process %d - sending %s to %d\n", rank,temp,dest);
+			MPI_Send(temp, size, MPI_CHAR, dest, 4, MPI_COMM_WORLD);
+		//	memset(&temp, 0, size);
+			MPI_Recv(recvbuf, size, MPI_CHAR, dest, 4, MPI_COMM_WORLD, 0);
+			printf("...process %d - receiving: %s from process %d \n", rank, recvbuf, dest);
+
+			int j;
+			for(int j = 0; j < size; j++){
+				if(recvbuf[j] != '*'){
+					temp[j] = recvbuf[j];			
+				}
+			}
+
+		}
+
+		for(i = 0; i < size; i++){
+			recvbuf[i] = temp[i];
+		}
+
+		MPI_Barrier(MPI_COMM_WORLD);
+		//printf("process %d --> recvbuf %s\n", rank, temp);
 
 		//free(temp);
 
