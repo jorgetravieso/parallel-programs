@@ -36,10 +36,10 @@ int main(int argc, char ** argv){
 	addall(rank, &sum, 0);
 	if(rank==0) printf("addall->%d\n", sum);
 	char ch = 'A'+rank;
-	char* buf = (char*)malloc(p * 3+1);
-	collectall2("ABC", 3, buf);
+	char* buf = (char*)malloc(p* 4 + 1);
+	collectall2("ABCDE", 4, buf);
 	//collectall2(&ch, 1, buf);
-	buf[p * 3 + 1] = '\0';
+	buf[p * 4] = '\0';
 	if(rank==2) printf("%d: %s\n", rank, buf);
 	free(buf);
 	
@@ -153,27 +153,29 @@ int main(int argc, char ** argv){
 		MPI_Barrier(MPI_COMM_WORLD);
 		int size = sendcnt * p + 1;
 		char temp[size];
-		memset(&temp, '*', size);
-		temp[size - 1] = '\0';
-		int i, j = rank;		
+		memset(&temp, 0, size);
+		//temp[size - 1] = '\0';
+		int i, j = rank * p;		
 		for(i = 0; i < sendcnt; i++){
-			temp[j++] = sendbuf[i];
+			temp[j] = sendbuf[i];
 			recvbuf[j++] = sendbuf[i];
 		}
+
+		//printf("process %d --> initialy has %s\n", rank, temp);
 
 
 		int n  = log2(p);
 		for(i = n - 1; i >= 0; i--){
 			int dest = rank ^ 1 << i;
-			printf("...process %d - sending %s to %d\n", rank,temp,dest);
+			//printf("...process %d - sending %s to %d\n", rank,temp,dest);
 			MPI_Send(temp, size, MPI_CHAR, dest, 4, MPI_COMM_WORLD);
 		//	memset(&temp, 0, size);
 			MPI_Recv(recvbuf, size, MPI_CHAR, dest, 4, MPI_COMM_WORLD, 0);
-			printf("...process %d - receiving: %s from process %d \n", rank, recvbuf, dest);
+			//printf("...process %d - receiving: %s from process %d \n", rank, recvbuf, dest);
 
 			int j;
 			for(int j = 0; j < size; j++){
-				if(recvbuf[j] != '*'){
+				if(recvbuf[j] != 0){
 					temp[j] = recvbuf[j];			
 				}
 			}
