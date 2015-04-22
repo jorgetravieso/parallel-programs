@@ -360,6 +360,9 @@ void my_matmul(int crow, int ccol, /* corner of C block */
   }
 }
 	       
+ //MatrixMatrixMultiply(int n, double *a, double *b, double *c, 
+ //                       MPI_Comm comm) 
+
 int main(int argc, char* argv[])
 {
   double elapsed_time;
@@ -367,6 +370,7 @@ int main(int argc, char* argv[])
   int id, coord[2];
   int dim[2], period[2];
   MPI_Comm comm;
+  MPI_Status status;         
   int ma, na, mb, nb, n;
   datatype **a;
   datatype *sa;
@@ -419,13 +423,29 @@ int main(int argc, char* argv[])
   //my_matmul(0, 0, 0, 0, 0, 0, n, n, n, n, a, b, c);
 
   //MatrixMatrixMultiply_NonBlocking(n, sa, sb, sc, comm);
+  int uprank, downrank, leftrank, rightrank;
 
-  MatrixMultiply(n, sa, sb, sc);
+ /* Compute ranks of the up and left shifts */ 
+  MPI_Cart_shift(comm, 1, -1, &rightrank, &leftrank); 
+  MPI_Cart_shift(comm, 0, -1, &downrank, &uprank); 
+
+  for (i=0; i<dim[0]; i++) { 
+    MatrixMultiply(n, sa, sb, sc); /*c=c+a*b*/ 
+    /* Shift matrix a left by one */ 
+    MPI_Sendrecv_replace(sa, n*n, MPI_DOUBLE, 
+    leftrank, 1, rightrank, 1, comm, &status); 
+    //        printf("Proc1: %d\nProc2: %d Dims:%d\n",my2drank,gRank,i); 
+
+    /* Shift matrix b up by one */ 
+    MPI_Sendrecv_replace(sb, n*n, MPI_DOUBLE, 
+    uprank, 1, downrank, 1, comm, &status); 
+  }
+  
   //MatrixMatrixMultiply(n, sa, sb, sc, comm);
   printf("id=%d, after multiplication \n", id);
 
   //testing
-  for(i=0; i<n; i++) c[i] = &sc[i*n];
+  //for(i=0; i<n; i++) c[i] = &sc[i*n];
 
   /* write the submatrix of C managed by this process */
   
