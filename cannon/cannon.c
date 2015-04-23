@@ -61,7 +61,7 @@ void my_abort(const char* fmt, ...)
 
 
     /* This function performs a serial matrix-matrix multiplication c = a*b */ 
-void MatrixMultiply(int n, datatype *a, datatype *b, datatype *c) 
+void MatrixMultiply(int n, double *a, double *b, double *c) 
 { 
     int i, j, k; 
 
@@ -360,9 +360,19 @@ void my_matmul(int crow, int ccol, /* corner of C block */
   }
 }
 	       
- //MatrixMatrixMultiply(int n, double *a, double *b, double *c, 
- //                       MPI_Comm comm) 
+/*
+void cannon(int n, datatype ** a, datatype ** b, datatype ** c, datatype * sa ,datatype * sb, datatype * sc, MPI_Comm, comm){
 
+
+
+
+ 
+
+
+
+
+}
+*/
 int main(int argc, char* argv[])
 {
   double elapsed_time;
@@ -370,7 +380,8 @@ int main(int argc, char* argv[])
   int id, coord[2];
   int dim[2], period[2];
   MPI_Comm comm;
-  MPI_Status status;         
+  MPI_Status status;
+  MPI_Request reqs[4];         
   int ma, na, mb, nb, n;
   datatype **a;
   datatype *sa;
@@ -378,7 +389,8 @@ int main(int argc, char* argv[])
   datatype *sb;
   datatype **c; 
   datatype *sc;
-  int i;
+  int i, j;
+
 
   /* initialize MPI */
   MPI_Init(&argc, &argv);
@@ -422,25 +434,72 @@ int main(int argc, char* argv[])
   printf("id=%d, before multiplication \n", id);
   //my_matmul(0, 0, 0, 0, 0, 0, n, n, n, n, a, b, c);
 
-  //MatrixMatrixMultiply_NonBlocking(n, sa, sb, sc, comm);
+
+
+
+ 
+ //*****************************************************
+ 
+  int shiftsource, shiftdest;
   int uprank, downrank, leftrank, rightrank;
 
- /* Compute ranks of the up and left shifts */ 
+     /* Compute ranks of the up and left shifts */ 
   MPI_Cart_shift(comm, 1, -1, &rightrank, &leftrank); 
   MPI_Cart_shift(comm, 0, -1, &downrank, &uprank); 
 
-  for (i=0; i<dim[0]; i++) { 
-    MatrixMultiply(n, sa, sb, sc); /*c=c+a*b*/ 
-    /* Shift matrix a left by one */ 
-    MPI_Sendrecv_replace(sa, n*n, MPI_DOUBLE, 
-    leftrank, 1, rightrank, 1, comm, &status); 
-    //        printf("Proc1: %d\nProc2: %d Dims:%d\n",my2drank,gRank,i); 
+     /* Perform the initial matrix alignment. First for A and then for B */ 
+     MPI_Cart_shift(comm, 1, -coord[0], &shiftsource, &shiftdest); 
+     MPI_Sendrecv_replace(a[0], n*n, MPI_DOUBLE, 
+         shiftdest, 1, shiftsource, 1, comm, &status); 
+ 
+     MPI_Cart_shift(comm, 0, -coord[1], &shiftsource, &shiftdest); 
+     MPI_Sendrecv_replace(b[0], n*n, MPI_DOUBLE, 
+         shiftdest, 1, shiftsource, 1, comm, &status); 
 
-    /* Shift matrix b up by one */ 
-    MPI_Sendrecv_replace(sb, n*n, MPI_DOUBLE, 
-    uprank, 1, downrank, 1, comm, &status); 
-  }
-  
+
+
+
+
+   /* Setup the a_buffers and b_buffers arrays */ 
+ datatype **a_buffer[2], **b_buffer[2];
+ datatype *sa2, *sb2;
+ datatype **a2, **b2;
+ a_buffer[0] = a;
+ sa2 = (datatype*)malloc(n*n*sizeof(datatype));
+ memset(sa2, 0, n*n*sizeof(datatype));
+ a2 = (datatype**)malloc(n*sizeof(datatype*));
+ for(i=0; i<n; i++) a2[i] = &sa2[i*n];
+ a_buffer[1] = a2;
+
+ b_buffer[0] = b;
+ sb2 = (datatype*)malloc(n*n*sizeof(datatype));
+ memset(sb2, 0, n*n*sizeof(datatype));
+ b2 = (datatype**)malloc(n*sizeof(datatype*));
+ for(i=0; i<n; i++) b2[i] = &sb2[i*n];
+ b_buffer[1] = b2;
+
+
+ /* Get into the main computation loop */ 
+ for (i = 0 ; i < dim[0] ; i++) 
+ { 
+     MPI_Isend(a_buffer[i%2][0], n*n, MPI_DOUBLE, 
+          leftrank, 1, comm, &reqs[0]); 
+      MPI_Isend(b_buffer[i%2][0], n*n, MPI_DOUBLE, 
+          uprank, 1, comm, &reqs[1]); 
+      MPI_Irecv(a_buffer[(i+1)%2][0], n*n, MPI_DOUBLE, 
+          rightrank, 1, comm, &reqs[2]); 
+      MPI_Irecv(b_buffer[(i+1)%2][0], n*n, MPI_DOUBLE, 
+          downrank, 1, comm, &reqs[3]);
+      my_matmul(0, 0, 0, 0, 0, 0, n, n, n, n, a_buffer[i%2], b_buffer[i%2], c);
+
+   for (j=0; j<4; j++) 
+        MPI_Wait(&reqs[j], &status);
+ }
+
+
+
+
+
   //MatrixMatrixMultiply(n, sa, sb, sc, comm);
   printf("id=%d, after multiplication \n", id);
 
@@ -448,10 +507,6 @@ int main(int argc, char* argv[])
   //for(i=0; i<n; i++) c[i] = &sc[i*n];
 
   /* write the submatrix of C managed by this process */
-  
- // printMatrix(sc, n, n);
-
-
   write_checkerboard_matrix(argv[3], (void**)c, mpitype, ma, ma, comm);
   
 
