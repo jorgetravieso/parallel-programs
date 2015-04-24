@@ -1,0 +1,15 @@
+#!/bin/sh
+#BSUB -q classroom
+#BSUB -J jorge_mpi_cannon_4096
+#BSUB -oo mpi_cannon_4096.16.out
+#BSUB -eo mpi_cannon_4096.16.err
+
+#BSUB -a openmpi
+#BSUB -n 16
+
+. $MODULESHOME/../global/profile.modules
+
+mpirun.lsf ./cannon 4096.mtx 4096.mtx 4096.out
+
+####BSUB -R "span[ptile=16]"
+####export I_MPI_DEBUG=5

@@ -1,0 +1,15 @@
+#!/bin/sh
+#BSUB -q classroom
+#BSUB -J jorge_sqmm_4096
+#BSUB -oo seqmm_4096.1.out
+#BSUB -eo seqmm_4096.1.err
+
+#BSUB -a openmpi
+#BSUB -n 1
+
+. $MODULESHOME/../global/profile.modules
+
+mpirun.lsf ./seqmm 4096.mtx 4096.mtx 4096.out
+
+####BSUB -R "span[ptile=16]"
+####export I_MPI_DEBUG=5

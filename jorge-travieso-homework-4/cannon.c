@@ -1,3 +1,13 @@
+
+/*
+Jorge Travieso
+COP 4520
+Spring 2015
+Professor Liu
+*/
+
+
+
 /*
  * Code template for implementing ...
  *   matrix multiplication using Cannon's Algorithm in MPI
@@ -398,10 +408,15 @@ int main(int argc, char* argv[])
   printf("id=%d, coord[%d,%d]: read submatrix of B of dims %dx%d\n", id, coord[0], coord[1], mb, nb);
   
   /* YOUR CODE: sanity checks as necessary */
-  if(!((ma == mb) && (ma == na) && (nb == na)){
-    my_abort("the matrices %s and %s don't have the same dimensions... exiting\n", argv[1], argv[2]);
+  if(!(ma == mb && ma == na && nb == na)){
+    printf("the matrices %s and %s don't have the same dimensions... exiting\n", argv[1], argv[2]);
+    return 1;
   }
 
+  if(na % p_sqrt != 0){
+    printf("the input matrices dimensions is not divisible by the sqrt of p... exiting\n");
+    return 1;
+  }
 
 
 

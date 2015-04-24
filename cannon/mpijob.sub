@@ -1,0 +1,15 @@
+#!/bin/sh
+#BSUB -q classroom
+#BSUB -J jorge_mpi_cannon
+#BSUB -oo mpi_pi.16.out
+#BSUB -eo mpi_pi.16.err
+
+#BSUB -a openmpi
+#BSUB -n 16
+
+. $MODULESHOME/../global/profile.modules
+
+mpirun.lsf ./mpi_pi
+
+####BSUB -R "span[ptile=16]"
+####export I_MPI_DEBUG=5
